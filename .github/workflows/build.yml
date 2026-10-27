@@ -16,6 +16,7 @@ jobs:
     - name: Build apk
       run: |
         ./build.sh full
+        test -f android/build/outputs/apk/release/android-release.apk
 
     - name: Archive apk
       uses: actions/upload-artifact@v4

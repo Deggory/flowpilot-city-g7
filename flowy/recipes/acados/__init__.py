@@ -28,6 +28,8 @@ class AcadosRecipe(Recipe):
                         join(self.ctx.ndk_dir, 'build', 'cmake',
                              'android.toolchain.cmake')),
                     '-DCMAKE_ASM_FLAGS=-DOS_LINUX',
+                    # NDK r28+ (clang 19) errors on implicit declarations in qpOASES
+                    '-DCMAKE_C_FLAGS=-Wno-error=implicit-function-declaration -Wno-error=int-conversion',
                     '-DACADOS_WITH_QPOASES=ON',
                     '-UBLASFEO_TARGET',
                     '-DBLASFEO_TARGET=ARMV8A_ARM_CORTEX_A57',
