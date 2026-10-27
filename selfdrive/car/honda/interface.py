@@ -11,6 +11,7 @@ from selfdrive.car.disable_ecu import disable_ecu
 
 ButtonType = car.CarState.ButtonEvent.Type
 EventName = car.CarEvent.EventName
+GearShifter = car.CarState.GearShifter
 TransmissionType = car.CarParams.TransmissionType
 BUTTONS_DICT = {CruiseButtons.RES_ACCEL: ButtonType.accelCruise, CruiseButtons.DECEL_SET: ButtonType.decelCruise,
                 CruiseButtons.MAIN: ButtonType.altButton3, CruiseButtons.CANCEL: ButtonType.cancel}
@@ -57,8 +58,17 @@ class CarInterface(CarInterfaceBase):
     if any(0x33DA in f for f in fingerprint.values()):
       ret.flags |= HondaFlags.BOSCH_EXT_HUD.value
 
+    # Detect electric parking brake (upstream openpilot 6fa346ed). The City G7 (Brazil) has no 0x1C2.
+    if 0x1C2 in fingerprint[0]:
+      ret.flags |= HondaFlags.HAS_EPB.value
+
     # Accord 1.5T CVT has different gearbox message
     if candidate == CAR.ACCORD and 0x191 in fingerprint[1]:
+      ret.transmissionType = TransmissionType.cvt
+
+    # City G7 (Brazil) is a traditional CVT: gear position in 0x191 GEARBOX, decoded with the CVT layout
+    # (GEAR_SHIFTER 44|5@0+) of honda_civic_ex_2022_can, as in upstream openpilot v0.9.9.
+    elif candidate == CAR.CITY_7G and 0x191 in fingerprint[0]:
       ret.transmissionType = TransmissionType.cvt
 
     # Certain Hondas have an extra steering sensor at the bottom of the steering rack,
@@ -68,6 +78,7 @@ class CarInterface(CarInterfaceBase):
     ret.lateralParams.torqueBP, ret.lateralParams.torqueV = [[0], [0]]
     ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
     ret.lateralTuning.pid.kf = 0.00006  # conservative feed-forward
+    ret.steerActuatorDelay = 0.1  # per-car branches below may override (City G7: 0.15)
 
     if candidate in HONDA_BOSCH:
       ret.longitudinalTuning.kpV = [0.25]
@@ -114,6 +125,22 @@ class CarInterface(CarInterfaceBase):
       ret.lateralParams.torqueBP, ret.lateralParams.torqueV = [[0, 4096], [0, 4096]]  # TODO: determine if there is a dead zone at the top end
       tire_stiffness_factor = 1.
       ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.8], [0.24]]
+
+    elif candidate == CAR.CITY_7G:
+      # Honda City G7 2023 (Brazil), port of upstream openpilot v0.9.9 (HONDA_CITY_7G, HondaBoschPlatformConfig)
+      ret.mass = 3125 * CV.LB_TO_KG + STD_CARGO_KG
+      ret.wheelbase = 2.6
+      ret.centerToFront = ret.wheelbase * 0.41
+      ret.steerRatio = 19.0
+      ret.minSteerSpeed = 23. * CV.KPH_TO_MS
+      ret.lateralParams.torqueBP, ret.lateralParams.torqueV = [[0, 2560], [0, 2560]]
+      tire_stiffness_factor = 1.
+      ret.steerActuatorDelay = 0.15
+      # torque lateral control, as upstream (torque_data/override.yaml: HONDA CITY 7G = [1.2, 1.2, 0.23])
+      CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
+      # upstream fb5ac6d3 raised the torque controller ki to 0.3 for all cars; applied here per-platform
+      # so that the other cars in this tree keep their ki = 0.1
+      ret.lateralTuning.torque.ki = 0.3
 
     elif candidate in (CAR.ACCORD, CAR.ACCORDH):
       ret.mass = 3279. * CV.LB_TO_KG + STD_CARGO_KG
@@ -300,7 +327,6 @@ class CarInterface(CarInterfaceBase):
     ret.tireStiffnessFront, ret.tireStiffnessRear = scale_tire_stiffness(ret.mass, ret.wheelbase, ret.centerToFront,
                                                                          tire_stiffness_factor=tire_stiffness_factor)
 
-    ret.steerActuatorDelay = 0.1
     ret.steerLimitTimer = 0.8
 
     return ret
@@ -325,7 +351,8 @@ class CarInterface(CarInterfaceBase):
     ret.buttonEvents = buttonEvents
 
     # events
-    events = self.create_common_events(ret, pcm_enable=False)
+    # GearShifter.sport accepted (backport of upstream openpilot bae7a610f): the City G7 CVT has an S position
+    events = self.create_common_events(ret, extra_gears=[GearShifter.sport], pcm_enable=False)
     #if self.CS.brake_error:
     #  events.add(EventName.brakeUnavailable)
 

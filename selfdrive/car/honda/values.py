@@ -49,6 +49,10 @@ class CarControllerParams:
 class HondaFlags(IntFlag):
   # Bosch models with alternate set of LKAS_HUD messages
   BOSCH_EXT_HUD = 1
+  # Detected flag (backport of upstream openpilot 6fa346ed "Honda: EPB message refactor"): set when
+  # 0x1C2 EPB_STATUS is seen on the PT bus. The City G7 (Brazil) has no electric parking brake and
+  # does not send 0x1C2, so requiring it for every Bosch car would make the CAN parser time out.
+  HAS_EPB = 2
 
 
 # Car button codes
@@ -79,6 +83,7 @@ class CAR:
   CIVIC_BOSCH = "HONDA CIVIC (BOSCH) 2019"
   CIVIC_BOSCH_DIESEL = "HONDA CIVIC SEDAN 1.6 DIESEL 2019"
   CIVIC_2022 = "HONDA CIVIC 2022"
+  CITY_7G = "HONDA CITY 7G"
   ACURA_ILX = "ACURA ILX 2016"
   CRV = "HONDA CR-V 2016"
   CRV_5G = "HONDA CR-V 2017"
@@ -131,6 +136,7 @@ CAR_INFO: Dict[str, Optional[Union[HondaCarInfo, List[HondaCarInfo]]]] = {
     HondaCarInfo("Honda Civic 2022", "All", video_link="https://youtu.be/ytiOT5lcp6Q"),
     HondaCarInfo("Honda Civic Hatchback 2022", "All", video_link="https://youtu.be/ytiOT5lcp6Q"),
   ],
+  CAR.CITY_7G: HondaCarInfo("Honda City (Brazil only) 2023", "All"),  # min steer speed (23 km/h) comes from CarParams
   CAR.ACURA_ILX: HondaCarInfo("Acura ILX 2016-19", "AcuraWatch Plus", min_steer_speed=25. * CV.MPH_TO_MS),
   CAR.CRV: HondaCarInfo("Honda CR-V 2015-16", "Touring Trim", min_steer_speed=12. * CV.MPH_TO_MS),
   CAR.CRV_5G: HondaCarInfo("Honda CR-V 2017-22", min_steer_speed=12. * CV.MPH_TO_MS),
@@ -1553,6 +1559,39 @@ FW_VERSIONS = {
       b'37805-64D-P510\x00\x00',
     ],
   },
+  CAR.CITY_7G: {
+    (Ecu.eps, 0x18da30f1, None): [
+      b'39990-T14-B030\x00\x00',
+    ],
+    (Ecu.gateway, 0x18daeff1, None): [
+      b'38897-T14-M110\x00\x00',
+    ],
+    (Ecu.srs, 0x18da53f1, None): [
+      b'77959-T00-B830\x00\x00',
+    ],
+    (Ecu.fwdRadar, 0x18dab0f1, None): [
+      b'36161-T14-P050\x00\x00',
+    ],
+    (Ecu.vsa, 0x18da28f1, None): [
+      b'57114-T14-B030\x00\x00',
+    ],
+    (Ecu.transmission, 0x18da1ef1, None): [
+      b'28101-63B-M420\x00\x00',
+    ],
+  },
+}
+
+# Legacy CAN fingerprints (FPv1). flowpilot's car_helpers.fingerprint() skips the FW query, so a car can only be
+# recognised automatically through this table (or fixed through the "Mycar" param / FINGERPRINT env).
+# Honda City G7 2023 (Brazil): every 11-bit address seen on the PT bus (bus 0) of route
+# 56b2cf1dacdcd033/00000017--d24ffdb376, with its DLC. Includes the camera messages that the panda forwards
+# to bus 0 (0xE4, 0x1C8, 0x1C9, 0x1EF, 0x30C, 0x310, 0x33D, 0x35E), so that they do not eliminate the candidate.
+FINGERPRINTS = {
+  CAR.CITY_7G: [{
+    57: 3, 148: 8, 228: 5, 304: 8, 330: 8, 344: 8, 380: 8, 399: 7, 401: 8, 420: 8, 427: 3, 428: 8, 432: 7, 441: 5,
+    456: 8, 457: 8, 464: 8, 467: 8, 477: 8, 493: 5, 495: 8, 662: 4, 767: 8, 773: 7, 777: 8, 780: 8, 784: 8, 804: 8,
+    806: 8, 808: 8, 829: 8, 862: 8, 884: 8, 891: 8, 929: 8, 1302: 8
+  }],
 }
 
 DBC = {
@@ -1579,18 +1618,20 @@ DBC = {
   CAR.INSIGHT: dbc_dict('honda_insight_ex_2019_can_generated', None),
   CAR.HONDA_E: dbc_dict('acura_rdx_2020_can_generated', None),
   CAR.CIVIC_2022: dbc_dict('honda_civic_ex_2022_can_generated', None),
+  CAR.CITY_7G: dbc_dict('honda_civic_ex_2022_can_generated', None),
 }
 
 STEER_THRESHOLD = {
   # default is 1200, overrides go here
   CAR.ACURA_RDX: 400,
   CAR.CRV_EU: 400,
+  CAR.CITY_7G: 600,
 }
 
 HONDA_NIDEC_ALT_PCM_ACCEL = {CAR.ODYSSEY}
 HONDA_NIDEC_ALT_SCM_MESSAGES = {CAR.ACURA_ILX, CAR.ACURA_RDX, CAR.CRV, CAR.CRV_EU, CAR.FIT, CAR.FREED, CAR.HRV, CAR.ODYSSEY_CHN,
                                 CAR.PILOT, CAR.RIDGELINE}
 HONDA_BOSCH = {CAR.ACCORD, CAR.ACCORDH, CAR.CIVIC_BOSCH, CAR.CIVIC_BOSCH_DIESEL, CAR.CRV_5G,
-               CAR.CRV_HYBRID, CAR.INSIGHT, CAR.ACURA_RDX_3G, CAR.HONDA_E, CAR.CIVIC_2022, CAR.HRV_3G}
+               CAR.CRV_HYBRID, CAR.INSIGHT, CAR.ACURA_RDX_3G, CAR.HONDA_E, CAR.CIVIC_2022, CAR.HRV_3G, CAR.CITY_7G}
 HONDA_BOSCH_ALT_BRAKE_SIGNAL = {CAR.ACCORD, CAR.CRV_5G, CAR.ACURA_RDX_3G, CAR.HRV_3G}
-HONDA_BOSCH_RADARLESS = {CAR.CIVIC_2022, CAR.HRV_3G}
+HONDA_BOSCH_RADARLESS = {CAR.CIVIC_2022, CAR.HRV_3G, CAR.CITY_7G}
