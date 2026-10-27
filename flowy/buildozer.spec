@@ -102,7 +102,8 @@ android.api = 31
 android.minapi = 24
 
 # (str) Android NDK version to use
-#android.ndk = 19c
+# pinned: NDK 25b is what p4a b0efb9f3 (develop as of 2025-03, the upstream build era) expects; r28c breaks acados/qpOASES
+android.ndk = 25b
 
 # (int) Android NDK API to use (optional). This is the minimum API your app will support. 
 #android.ndk_api = 21
@@ -165,6 +166,8 @@ android.accept_sdk_license = True
 
 # (str) python-for-android branch to use, defaults to stable
 p4a.branch = develop
+# pinned: p4a develop HEAD as of 2025-03-04; newer develop builds Python 3.13, which breaks pycapnp (_PyDict_SetItem_KnownHash)
+p4a.commit = b0efb9f36dddca45e829fc57d0ba39b3665910e7
 
 # (str) OUYA Console category. Should be one of GAME or APP
 # If you leave this blank, OUYA support will not be enabled
