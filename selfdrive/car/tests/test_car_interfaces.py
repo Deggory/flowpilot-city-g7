@@ -56,19 +56,20 @@ class TestCarInterfaces(unittest.TestCase):
       elif tune.which() == 'indi':
         self.assertTrue(len(tune.indi.outerLoopGainV))
 
-    # Run car interface
+    # Run car interface (controlsd calls CI.apply(CC, sm, now_nanos); sm is unused by most brands)
+    sm = None
     CC = car.CarControl.new_message()
     for _ in range(10):
       car_interface.update(CC, [])
-      car_interface.apply(CC, 0)
-      car_interface.apply(CC, 0)
+      car_interface.apply(CC, sm, 0)
+      car_interface.apply(CC, sm, 0)
 
     CC = car.CarControl.new_message()
     CC.enabled = True
     for _ in range(10):
       car_interface.update(CC, [])
-      car_interface.apply(CC, 0)
-      car_interface.apply(CC, 0)
+      car_interface.apply(CC, sm, 0)
+      car_interface.apply(CC, sm, 0)
 
     # Test radar interface
     RadarInterface = importlib.import_module(f'selfdrive.car.{car_params.carName}.radar_interface').RadarInterface
