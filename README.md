@@ -6,15 +6,21 @@
 > Base: a snapshot of [jagheterfredrik/flowpilot](https://github.com/jagheterfredrik/flowpilot) master `9ea918ea`
 > (2025-03-04; standalone APK, car layer ~ openpilot 0.9.2-0.9.4, panda flattened at commaai/panda `abdc4185`).
 > The snapshot was imported as a tarball, so this repo has no upstream history. Target device: Xiaomi Poco F3 +
-> STM32F4 black panda. **Not tested on phone, panda or car. APK not built yet (needs Docker/Linux).**
+> STM32F4 black panda. **Not tested on phone, panda or car.** The APK is built by the Build GitHub Actions workflow
+> (artifact `android-release.apk`, first green run 40683947737 at `d079568`).
 >
-> **What is new / modified on this branch (3 commits on top of the snapshot `43eab22`):**
+> **What is new / modified on this branch (car port: 3 commits on top of the snapshot `43eab22`; then build/CI fixes):**
 >
 > | Commit | Files | Change |
 > |---|---|---|
 > | `a2f1983` | `selfdrive/car/honda/{values,interface,carstate,fingerprints}.py`, `opendbc/generator/honda`, `opendbc/*.dbc`, `docs/CARS.md`, routes | `HONDA_CITY_7G` radarless Bosch platform (harness Bosch B), FW + CAN fingerprints (36 msgs checked against a real City route), `STEER_THRESHOLD` 600, `HAS_EPB` auto-detection (City has no `0x1C2 EPB_STATUS`), torque tune `[1.2, 1.2, 0.23]` + `ki` 0.3, `steerActuatorDelay` 0.15, CVT `S` gear accepted, DBC `BO_ 401 GEARBOX` with the upstream `GEARBOX_CVT` layout (`1 P 2 R 3 N 4 D 7 L 10 S`) |
 > | `fd9e846` | `panda/` | Windows-only SCons helper to build the black panda firmware from this tree without Docker |
 > | `275df51` | `selfdrive/car/*/interface.py`, `selfdrive/car/honda/values.py`, `docs/CARS.md` | fix pre-existing `CarInterface.apply(c, sm, now_nanos)` signature mismatch with `controlsd` in 10 brands; Honda `STEER_*` constants; regenerated `CARS.md` |
+> | `77a4fd7` | `*.sh` | restore the executable bit lost in the tarball import |
+> | `ee6d526` | `.gitmodules`, 6 gitlinks | restore the submodule gitlinks (capnproto-java, laika, rednose, eigen3, libusb, libzmq) pinned to the upstream SHAs |
+> | `660a9c2` | `flowy/recipes/acados`, `.github/workflows/build.yml` | tolerate clang 19 implicit-declaration errors in qpOASES; fail CI when no APK is produced |
+> | `137e262` | `flowy/buildozer.spec` | pin `p4a.commit = b0efb9f3` (p4a develop, 2025-03) and `android.ndk = 25b` (the NDK hardcoded in `SConstruct`/`scripts/build.sh`) |
+> | `d079568` | `flowy/pip-constraints.txt`, `scripts/build.sh` | `PIP_CONSTRAINT` pinning `build==1.2.2` / `virtualenv==20.29.3`: `build>=1.4.3` strips `PYTHONPATH` and breaks p4a's hostpython (numpy/mesonpy `_posixsubprocess`) |
 >
 > Panda firmware: built from this tree (`panda.bin.signed`, version `DEV-a2f1983c-DEBUG`, debug-signed -> the stock
 > release bootstub must be replaced once over DFU). `safety_honda.h` is unchanged (`HONDA_BOSCH` + `RADARLESS`),
