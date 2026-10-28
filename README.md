@@ -7,7 +7,8 @@
 > (2025-03-04; standalone APK, car layer ~ openpilot 0.9.2-0.9.4, panda flattened at commaai/panda `abdc4185`).
 > The snapshot was imported as a tarball, so this repo has no upstream history. Target device: Xiaomi Poco F3 +
 > STM32F4 black panda. **Not tested on phone, panda or car.** The APK is built by the Build GitHub Actions workflow
-> (artifact `android-release.apk`, first green run 40683947737 at `d079568`).
+> (artifact `android-release.apk`; first complete APK: run 40697331404 at `ffd228c`. The earlier run 40683947737 / `d079568`
+> produced an APK without the Python tree and without the native libs, so it hung at "Booting Flowpilot").
 >
 > **What is new / modified on this branch (car port: 3 commits on top of the snapshot `43eab22`; then build/CI fixes):**
 >
@@ -21,6 +22,9 @@
 > | `660a9c2` | `flowy/recipes/acados`, `.github/workflows/build.yml` | tolerate clang 19 implicit-declaration errors in qpOASES; fail CI when no APK is produced |
 > | `137e262` | `flowy/buildozer.spec` | pin `p4a.commit = b0efb9f3` (p4a develop, 2025-03) and `android.ndk = 25b` (the NDK hardcoded in `SConstruct`/`scripts/build.sh`) |
 > | `d079568` | `flowy/pip-constraints.txt`, `scripts/build.sh` | `PIP_CONSTRAINT` pinning `build==1.2.2` / `virtualenv==20.29.3`: `build>=1.4.3` strips `PYTHONPATH` and breaks p4a's hostpython (numpy/mesonpy `_posixsubprocess`) |
+> | `41801d8` | 16 symlinks, `panda/board/obj/.placeholder`, `panda/tests/misra/suppressions.txt`, `third_party/CL/libOpenCL.so`, `docker/Dockerfile`, `.github/workflows/build.yml` | restore the symlinks (`flowy/src/{cereal,common,opendbc,panda,rednose,selfdrive,system}`, `laika`, `rednose`, ...) and git-ignored files dropped by the tarball import, so scons builds and p4a packages the Python tree; CI now also checks the native libs |
+> | `973e185` | `docker/Dockerfile` | pin `cython==3.0.12` / `numpy==2.2.3` in the build venv (buildozer 1.6.0 pulls `cython<3`, which the numpy 2 Cython headers reject) |
+> | `ffd228c` | 164 files | restore the executable bit on the remaining scripts/binaries (`panda/crypto/sign.py`, `third_party/acados/*/t_renderer`, ...) |
 >
 > Panda firmware: built from this tree (`panda.bin.signed`, version `DEV-a2f1983c-DEBUG`, debug-signed -> the stock
 > release bootstub must be replaced once over DFU). `safety_honda.h` is unchanged (`HONDA_BOSCH` + `RADARLESS`),
