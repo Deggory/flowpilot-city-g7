@@ -2,6 +2,9 @@
 
 source ~/.venv/bin/activate
 
+# Pin host-side build tools used by python-for-android (see flowy/pip-constraints.txt)
+export PIP_CONSTRAINT="$(pwd)/flowy/pip-constraints.txt"
+
 # Function to build flowy
 build_flowy() {
   echo "Building flowy..."

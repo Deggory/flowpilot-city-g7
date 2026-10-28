@@ -1,0 +1,13 @@
+# Applied through PIP_CONSTRAINT (see scripts/build.sh) to every pip call made
+# by buildozer / python-for-android, including the hostpython pip and the
+# isolated environments created by `python -m build` for PEP 517 recipes.
+#
+# build >= 1.4.3 strips PYTHONPATH from the isolated build environment. p4a's
+# hostpython (copied into the target python3 build dir) depends on PYTHONPATH
+# to find its native extension modules (build/lib.linux-x86_64-3.11), so with
+# newer `build` the numpy/meson backend dies with
+# "ModuleNotFoundError: No module named '_posixsubprocess'".
+# These are the versions that were current when upstream flowpilot last built
+# (March 2025).
+build==1.2.2
+virtualenv==20.29.3
